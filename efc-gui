@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# efc_gui EGI FedCloud GUI application
+#
+EFCENV=fedcloudenv.sh
+DIALOG=$(which dialog)
+LOCATE=$(which locate)
+VPINIT=$(which voms-proxy-init)
+VPDTRY=$(which voms-proxy-destroy)
+
+pre_requisites() {
+  if [ "$DIALOG" = "" ]; then
+    echo "Unable to find dialog utility, please contact your system administrator to isntall it"
+    exit 1
+  fi
+  if [ "$LOCATE" = "" ]; then
+    echo "Unable to find locate utility, please contact your system administrator to install it"
+    exit 1
+  fi
+  if [ "$VPINIT" = "" ]; then
+    echo "Unable to find voms-proxy-init command, please contact your system administrator to install it"
+    exit 1
+  fi
+  if [ "$VPDTRY" = "" ]; then
+    echo "Unable to find voms-proxy-destrory command, please contact your system administrator to install it"
+    exit 1
+  fi
+  # Try first to locate and source the file
+  EFCENVPATH=$($LOCATE $EFCENV)
+  if [ $EFCENVPATH != "" ]; then
+    printf "EFC environment found at $EFCENVPATH, sourcing it ... "
+    . $EFCENVPATH
+    RES=$?
+    if [ $RES -eq 0 ]; then
+      echo "ok"
+    else
+      echo "fail"
+      exit 1
+    fi
+  else
+    echo "It seems EFC environment variables have not been sourced"
+    exit 1
+  fi
+}
+
+main_window() {
+  TMP=$(mktemp)
+  CHC=$(mktemp)
+  efc_show_conf >$TMP 
+  chkproxy
+  RES=$?
+  if [ $RES -eq 0 ]; then
+    efc_show_conf > $TMP
+  fi 
+  MSGCONTENT=$(cat $TMP)
+  rm -f $TMP
+  dialog --backtitle "EGI FedCloud GUI"\
+         --clear\
+         --title "title"\
+         --default-item "defitem"\
+         --ok-label "Select"\
+         --help-button --help-label "Help"\
+         --extra-button --extra-label "Configure"\
+         --exit-label "Exit"\
+         --menu "$MSGCONTENT" 30 80 26 \
+         "VOs"       "Show or select available VOs" \
+         "Endpoints" "Show or select one endpoint" \
+         "Templates" "Show or select one endpoint template" \
+         "ResTemplates" "Show or select one resource template" \
+         "Resources" "Show or select one available resource"  2>$CHC
+  RES=$?
+  case $RES in
+    0)  case $(cat $CHC) in
+        "VOs") vos ;;
+        "Endpoints")    endpoints ;;
+        "Templates")    templates ;;
+        "Resources")    resources ;;
+        "ResTemplates") restemplates;;
+        *) ;;
+       esac;;
+    1) confirm_exit;;
+  255) confirm_exit;;
+    *) confirm_exit;;
+  esac
+  rm -f $CHC
+}
+
+confirm_exit() {
+  dialog --title "Exit" \
+         --yesno "Are you sure you want to exit?" 7 60
+
+  # Get exit status
+  #   0 means user hit [yes] button.
+  #   1 means user hit [no] button.
+  # 255 means user hit [Esc] key.
+  response=$?
+  case $response in
+     0) LOOP=0;;
+     1) LOOP=1;;
+   255) LOOP=1;;
+  esac
+}
+
+endpoints() {
+  TMP=$(mktemp)
+  CHC=$(mktemp)
+  efc_list_endpoints >$TMP
+  dialog --clear\
+         --title "Endpoints"\
+         --menu  "Please select one of the available endpoints"  20 70 16 \
+         $(cat $TMP) 2>$CHC
+  RES=$?
+  case $RES in
+     0) OCCI_ENDPOINT=$(cat $TMP | grep $(cat $CHC) | awk '{ print $2 }')
+  esac
+  rm -f $TMP
+  rm -f $CHC
+}
+
+templates() {
+ TMP=$(mktemp)
+ CHC=$(mktemp)
+ TPLMSG=$(mktemp)
+ efc_templates > $TMP
+ RES=$?
+ if [ $RES -ne 0 ]; then
+   dialog --title "Alert" --msgbox "Sorry, unable to retrieve templates\n$(cat $TPLMSG)\n" 6 60
+ else
+   MENUDLG='dialog --title "Endpoints" --menu  "Please select one of the available endpoints"  20 70 16'
+   MENUITM=$(cat $TMP | tr '\n' ' ')
+   CMD="$MENUDLG $MENUITM"
+   eval $CMD 2>$CHC
+    RES=$?
+    case $RES in
+       0) OS_TPL=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
+    esac
+ fi  
+ rm -f $TPLMSG
+ rm -f $CHC
+ rm -f $TMP
+}
+
+chkproxy() {
+  if [ $NEEDPROXY -ne 0 ]; then
+    CHC=$(mktemp)
+    dialog --title "Generating proxy ..." \
+           --clear \
+           --passwordbox "Generating a proxy for VO: '"$OCCI_VOMS"';\nEnter your passphrase:" 10 50 2> $CHC
+    RES=$?
+
+    case $RES in
+       0)
+          VPIMSG=$(mktemp)
+          cat $CHC | $VPINIT --voms $OCCI_VOMS --rfc --pwstdin 2>>$VPIMSG >>$VPIMSG
+          RES=$?
+          if [ $RES -eq 0 ]; then
+            NEEDPROXY=0
+          else
+            dialog --title "Alert" --msgbox "Sorry, unable to create proxy:\n$(cat $VPIMSG)\n" 14 60
+          fi
+          rm -f $VPIMSG
+    esac
+    rm -f $CHC
+  fi
+  return $NEEDPROXY
+}
+
+vos() {
+  TMP=$(mktemp)
+  CHC=$(mktemp)
+  efc_list_vomses >$TMP
+  dialog --clear\
+         --title "VOs"\
+         --menu  "Please select one of the available VOs"  20 70 16 \
+         $(cat $TMP) 2>$CHC
+  RES=$?
+  case $RES in
+     0) OCCI_VOMS=$(cat $TMP | grep $(cat $CHC) | awk '{ print $2 }')
+  esac
+  rm -f $TMP
+  rm -f $CHC
+  OCCI_VOMS_VO=$(voms-proxy-info --vo)
+  if [ "$OCCI_VOMS_VO" = "" -o "$OCCI_VOMS_VO" != $OCCI_VOMS ]; then
+    $VPDTRY --quiet 
+  fi
+}
+
+resources() {
+ TMP=$(mktemp)
+ CHC=$(mktemp)
+ TPLMSG=$(mktemp)
+ efc_resources > $TMP
+ RES=$?
+ if [ $RES -ne 0 ]; then
+   dialog --title "Alert" --msgbox "Sorry, unable to retrieve resources\n$(cat $TPLMSG)\n" 6 60
+ else
+   MENUDLG='dialog --title "Endpoints" --menu  "Please select one of the available resources"  20 70 16'
+   MENUITM=$(cat $TMP | tr '\n' ' ')
+   CMD="$MENUDLG $MENUITM"
+   eval $CMD 2>$CHC
+    RES=$?
+    cat $TMP > pippo 
+    echo " " >> pippo
+    cat $CHC >> pippo
+    case $RES in
+       0) OCCI_RES=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
+    esac
+ fi
+ rm -f $TPLMSG
+ rm -f $CHC
+ rm -f $TMP
+}
+
+restemplates() {
+ TMP=$(mktemp)
+ CHC=$(mktemp)
+ TPLMSG=$(mktemp)
+ efc_flavor_list > $TMP
+ RES=$?
+ if [ $RES -ne 0 ]; then
+   dialog --title "Alert" --msgbox "Sorry, unable to retrieve resource templates\n$(cat $TPLMSG)\n" 6 60
+ else
+   MENUDLG='dialog --title "Resource endpoints" --menu  "Please select one of the available resource templates"  20 70 16'
+   MENUITM=$(printf "%s \"\" " $(cat $TMP))
+   CMD="$MENUDLG $MENUITM"
+   echo $CMD > pippo
+   eval $CMD 2>$CHC
+    RES=$?
+    case $RES in
+       0) RESOURCE_TPL=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
+    esac
+ fi
+ rm -f $TPLMSG
+ rm -f $CHC
+ rm -f $TMP  
+}
+
+#
+# BEGIN
+#
+pre_requisites
+LOOP=1
+while [ $LOOP -ne 0 ]; do
+  main_window
+done
+exit 0

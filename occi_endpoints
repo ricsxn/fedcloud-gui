@@ -1,0 +1,3 @@
+nebula-01 https://nebula-server-01.ct.infn.it:9000/
+stack-01 https://stack-server-01.ct.infn.it:8787/
+stack-02 http://stack-server-02.ct.infn.it:8787/

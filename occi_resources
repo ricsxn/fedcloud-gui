@@ -1,0 +1,4 @@
+# OCCI_VOMS=fedcloud.egi.eu
+# OCCI_ENDPOINT=http://stack-server-02.ct.infn.it:8787/
+http://stack-server-02.ct.infn.it:8787/compute/ace8bf44-7c7d-44c6-b591-14d81f058740 /tmp/tmp.BIndl5xZIN
+http://stack-server-02.ct.infn.it:8787/compute/a74013e5-eb05-47f3-8bc7-a30bb1766326 /tmp/tmp.c5YVxTl9zL
