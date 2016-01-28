@@ -3,6 +3,7 @@
 # fedcloudenv.sh - Script to easily manage EGI FedCloud appliances
 #
 #set -x
+MAXCACHETIME=$((5*60)) # Templates and Resources list use a caching mechanism
 export BASEPATH=$HOME/.fedcloud
 export CAPATH=/etc/grid-security/certificates
 export OCCI_ENDPOINTS=$BASEPATH/occi_endpoints
@@ -189,7 +190,10 @@ efc_show_conf() {
 efc_resources() {
   TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
   TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-  if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" ]; then
+  TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  TIMENOW=$(date +%s)
+  CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+  if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
     # Reporting directly
     efc_res_list
   else
@@ -208,6 +212,7 @@ efc_resources() {
     if [ $RES -eq 0 -a -s $RESLIST ]; then
       echo "# OCCI_VOMS=$OCCI_VOMS" > $OCCI_RESOURCES
       echo "# OCCI_ENDPOINT=$OCCI_ENDPOINT" >> $OCCI_RESOURCES
+      echo "# OCCI_CACHE=$(date +%s)" >> $OCCI_RESOURCES
       # occi CLI does not work inside a
       # 'while read do ... done < $TMPTPL' loop;
       # using for cycle instead    
@@ -254,7 +259,10 @@ efc_res_desc() {
 efc_templates() {
   TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
   TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-  if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" ]; then
+  TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  TIMENOW=$(date +%s)
+  CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+  if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
     # Reporting directly
     efc_tpl_list
   else
@@ -269,6 +277,7 @@ efc_templates() {
     fi
     echo "# OCCI_VOMS=$OCCI_VOMS" > $OCCI_TEMPLATES
     echo "# OCCI_ENDPOINT=$OCCI_ENDPOINT" >> $OCCI_TEMPLATES
+    echo "# OCCI_CACHE=$(date +%s)" >> $OCCI_TEMPLATES
     TMPTPL=$(mktemp)
     occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action list --resource os_tpl > $TMPTPL
     RES=$?

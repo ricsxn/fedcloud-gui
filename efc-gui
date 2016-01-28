@@ -27,7 +27,7 @@ pre_requisites() {
   fi
   # Try first to locate and source the file
   EFCENVPATH=$($LOCATE $EFCENV)
-  if [ $EFCENVPATH != "" ]; then
+  if [ "$EFCENVPATH" != "" ]; then
     printf "EFC environment found at $EFCENVPATH, sourcing it ... "
     . $EFCENVPATH
     RES=$?
