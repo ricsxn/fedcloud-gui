@@ -199,9 +199,6 @@ resources() {
    CMD="$MENUDLG $MENUITM"
    eval $CMD 2>$CHC
     RES=$?
-    cat $TMP > pippo 
-    echo " " >> pippo
-    cat $CHC >> pippo
     case $RES in
        0) OCCI_RES=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
     esac
@@ -223,7 +220,6 @@ restemplates() {
    MENUDLG='dialog --title "Resource endpoints" --menu  "Please select one of the available resource templates"  20 70 16'
    MENUITM=$(printf "%s \"\" " $(cat $TMP))
    CMD="$MENUDLG $MENUITM"
-   echo $CMD > pippo
    eval $CMD 2>$CHC
     RES=$?
     case $RES in

@@ -4,7 +4,7 @@
 #
 #set -x
 MAXCACHETIME=$((5*60)) # Templates and Resources list use a caching mechanism
-export BASEPATH=$HOME/.fedcloud
+export BASEPATH=$HOME/fedcloud-gui
 export CAPATH=/etc/grid-security/certificates
 export OCCI_ENDPOINTS=$BASEPATH/occi_endpoints
 export OCCI_VOMSES=$BASEPATH/occi_vomses
