@@ -12,5 +12,9 @@ occi\_vomses    - This file contains space separated couples such as \<VO short 
 
 Once configured to start the GUI just cd the 'fedcloud' dir and type: ./efc-gui
 
+## The command line
+The GUI make use of set of comman line tools wrapping several occi commands. These tools can be used by sourcing the file: `. ./fedcloudenv.sh`.
+It is possible to have a brief view of tools capabilities typing: `efc_help`.
+
 ## Attention
 The GUI utility makes use of 'dialog' command line
