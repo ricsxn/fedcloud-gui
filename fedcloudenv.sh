@@ -3,13 +3,19 @@
 # fedcloudenv.sh - Script to easily manage EGI FedCloud appliances
 #
 #set -x
-MAXCACHETIME=$((5*60)) # Templates and Resources list use a caching mechanism
-export BASEPATH=$HOME/fedcloud-gui
+MAXCACHETIME=$((120*60)) # Templates, ResTemplates and Resources use a caching mechanism
+export BASEPATH=$PWD
 export CAPATH=/etc/grid-security/certificates
 export OCCI_ENDPOINTS=$BASEPATH/occi_endpoints
 export OCCI_VOMSES=$BASEPATH/occi_vomses
 export OCCI_RESOURCES=$BASEPATH/occi_resources
 export OCCI_TEMPLATES=$BASEPATH/occi_templates
+export OCCI_RESTEMPLATES=$BASEPATH/occi_restemplates
+export LAST_OCCI_ENDPOINT=.last_occi_endpoint
+export LAST_OCCI_VOMS=.last_occi_voms
+export LAST_OS_TPL=.last_os_tpl
+export LAST_RES_TPL=.last_res_tpl
+export LAST_OCCI_RES=.last_occi_res
 
 efc_list_vomses() {
   cat $OCCI_VOMSES | awk '{ printf("%s\t%s\n",$1,$2); }'
@@ -21,6 +27,7 @@ efc_use_voms() {
    VOMS=$(cat $OCCI_VOMSES | grep $1 | head -n 1 | awk '{ print $2 }')
    if [ "$VOMS" != "" ]; then
      export OCCI_VOMS=$VOMS
+     echo $OCCI_VOMS > $LAST_OCCI_VOMS
      echo "Selected VOMS is now: $VOMS"
    else
      echo "Could not find VOMS with name: $1"
@@ -63,6 +70,7 @@ efc_use_endpoint() {
    ENDPOINT=$(cat $OCCI_ENDPOINTS | grep $1 | head -n 1 | awk '{ print $2 }')
    if [ "$ENDPOINT" != "" ]; then
      export OCCI_ENDPOINT=$ENDPOINT
+     echo $OCCI_ENDPOINT > $LAST_OCCI_ENDPOINT
      echo "Selected endpoint is now: $ENDPOINT"
    else
      echo "Could not find entry point with name: $1"
@@ -90,7 +98,7 @@ efc_get_proxy_timeleft() {
  return 0
 }
 
-egc_check_proxy() {
+efc_check_proxy() {
   if [ ! -f $USER_CRED ]; then
     echo "Could not find proxy file at: '"$USER_CRED"'"
     echo "Generating proxy ..."
@@ -151,24 +159,22 @@ efc_voms_info() {
 }
 
 efc_show_conf() {
-  #efc_get_voms_timeleft 
-  #VOMS_TL=$RES
-  #HMS2SEC $VOMS_TL
-  #VOMS_TL_SEC=$RES
-  #efc_get_proxy_timeleft
-  #PROXY_TL=$RES
-  #HMS2SEC $PROXY_TL
-  #PROXY_TL_SEC=$RES
-  #NOW=$(date +%H:%M:%S)
-  #HMS2SEC $NOW
-  #NOW_SEC=$RES
-  #VOMS_EXP_SEC=$((NOW_SEC+VOMS_TL_SEC))
-  #SEC2HMS $VOMS_EXP_SEC
-  #VOMS_EXP=$RES
-  #PROXY_EXP_SEC=$((NOW_SEC+PROXY_TL_SEC))
-  #SEC2HMS $PROXY_EXP_SEC
-  #PROXY_EXP=$RES
   efc_voms_info
+  if [ "$OCCI_ENDPOINT" = "" -a -f $LAST_OCCI_ENDPOINT ]; then
+    OCCI_ENDPOINT=$(cat $LAST_OCCI_ENDPOINT)
+  fi
+  if [ "$OCCI_VOMS" = "" -a -f $LAST_OCCI_VOMS ]; then 
+    OCCI_VOMS=$(cat $LAST_OCCI_VOMS)
+  fi
+  if [ "$OS_TPL" = "" -a -f $LAST_OS_TPL ]; then 
+    OS_TPL=$(cat $LAST_OS_TPL)
+  fi
+  if [ "$RES_TPL" = "" -a -f $LAST_RES_TPL ]; then
+    RES_TPL=$(cat $LAST_RES_TPL)
+  fi
+  if [ "$OCCI_RES" = "" -a -f $LAST_OCCI_RES ]; then
+    OCCI_RES=$(cat $LAST_OCCI_RES)
+  fi 
   echo "Showing current OCCI configuration:"
   echo "OCCI_ENDPOINT: '"$OCCI_ENDPOINT"'"
   if [ "$VOMS_EXP" = "" -o "$PROXY_EXP" = "" ]; then
@@ -183,17 +189,18 @@ efc_show_conf() {
   echo "USER_CRED    : '"$USER_CRED"'"
   echo "USER_PUBKEY  : '"$USER_PUBKEY"'"
   echo "OS_TPL       : '"$OS_TPL"'"
-  echo "RESOURCE_TPL : '"$RESOURCE_TPL"'"
+  echo "RES_TPL      : '"$RES_TPL"'"
   echo "OCCI_RES     : '"$OCCI_RES"'"
 }
 
 efc_resources() {
+  NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
   TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
   TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
   TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
   TIMENOW=$(date +%s)
   CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
-  if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+  if [ $NOCACHE -eq 0 -a "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
     # Reporting directly
     efc_res_list
   else
@@ -250,19 +257,14 @@ efc_res_list() {
   fi
 }
 
-efc_res_desc() {
-  RES=$(cat $OCCI_RESOURCES | grep $1 | awk '{ print $1 }')
-  INFO=$(cat $OCCI_RESOURCES | grep $1 | awk '{ print $2 }')
-  cat $INFO
-}
-
 efc_templates() {
+  NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
   TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
   TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
   TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
   TIMENOW=$(date +%s)
   CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
-  if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+  if [ $NOCACHE -eq 0 -a "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
     # Reporting directly
     efc_tpl_list
   else
@@ -308,7 +310,7 @@ efc_tpl_list() {
       if [ "$RMRK" != "#" ]; then
         TPLADDR=$(echo $tpl_record | awk '{ print $1}' |awk -F"#" '{ print $2 }')
         TPLINFO=$(echo $tpl_record | awk '{ print $2 }')
-        TPLNAME=$(cat $TPLINFO | grep "title:" | awk -F"Image: " '{ print $2 }')
+        TPLNAME=$(cat $TPLINFO | grep title |awk -F"title:" '{ print $2}' | xargs echo)
         echo $TPLADDR" \""$TPLNAME"\""
       fi
     done < $OCCI_TEMPLATES
@@ -317,8 +319,66 @@ efc_tpl_list() {
   fi
 }
 
-efc_flavor_list() {
-  occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms $VOMS --action list --resource resource_tpl
+efc_restemplates() {
+  NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
+  RESTPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+  RESTPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+  RESTPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  TIMENOW=$(date +%s)
+  CACHEDIFF=$((TIMENOW-RESTPL_OCCI_CACHE))
+  if [ $NOCACHE -eq 0 -a "$OCCI_VOMS" = "$RESTPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$RESTPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+    # Reporting directly
+    efc_restpl_list
+  else
+    if [ -f $OCCI_RESTEMPLATES -a -s $OCCI_RESTEMPLATES ]; then
+      while read restpl_record
+      do
+        RESTPLNAME=$(echo $restpl_record | awk '{ print $1 }')
+        RESTPLINFO=$(echo $restpl_record | awk '{ print $2 }')
+        rm -f $RESTPLINFO
+      done < $OCCI_RESTEMPLATES
+      rm -f $OCCI_RESTEMPLATES
+    fi
+    echo "# OCCI_VOMS=$OCCI_VOMS" > $OCCI_RESTEMPLATES
+    echo "# OCCI_ENDPOINT=$OCCI_ENDPOINT" >> $OCCI_RESTEMPLATES
+    echo "# OCCI_CACHE=$(date +%s)" >> $OCCI_RESTEMPLATES
+    RESTMPTPL=$(mktemp)
+    occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action list --resource resource_tpl > $RESTMPTPL
+    RES=$?
+    if [ $RES -eq 0 -a -s $RESTMPTPL ]; then
+      # occi CLI does not work inside a
+      # 'while read do ... done < $TMPTPL' loop;
+      # using for cycle instead
+      for restpl_record in $(cat $RESTMPTPL)
+      do
+        RESTPLINFO=$(mktemp)
+        occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action describe --resource $restpl_record > $RESTPLINFO
+        echo $restpl_record" "$RESTPLINFO >> $OCCI_RESTEMPLATES
+      done
+      rm -f $RESTMPTPL
+      # Now reporting ...
+      efc_restpl_list
+    else
+      echo "Unable to get resource template list"
+    fi
+  fi
+}
+
+efc_restpl_list() {
+  if [ -f $OCCI_RESTEMPLATES -a -s $OCCI_RESTEMPLATES ]; then
+    while read restpl_record
+    do
+      RMRK=$(echo $restpl_record | awk '{ print substr($1,1,1) }')
+      if [ "$RMRK" != "#" ]; then
+        RESTPLADDR=$(echo $restpl_record | awk '{ print $1}' | awk -F"#" '{ print $2 }')
+        RESTPLINFO=$(echo $restpl_record | awk '{ print $2 }')
+        RESTPLNAME=$(cat $RESTPLINFO | grep "title:" | awk -F"Flavor: " '{ print $2 }' | xargs echo)
+        echo $RESTPLADDR" \""$RESTPLNAME"\""
+      fi
+    done < $OCCI_RESTEMPLATES
+  else
+    echo "No resource templates available"
+  fi
 }
 
 efc_res_del() {
@@ -330,11 +390,16 @@ efc_res_del() {
   fi
 }
 
-efc_res_select() {
+efc_use_resource() {
   if [ "$1" != "" ]; then
-    cat $OCCI_RESOURCES
-    OCCI_RES=$(cat $OCCI_RESOURCES | grep $1 | awk '{ print $1 }')
-    echo "Selected resource is now: $OCCI_RES"
+    SELRES=$(cat $OCCI_RESOURCES | grep $1 | awk '{ print $1 }')
+    if [ "$SELRES" != "" ]; then
+      OCCI_RES=$SELRES 
+      echo $OCCI_RES > $LAST_OCCI_RES
+      echo "Selected resource is now: $OCCI_RES"
+    else
+      echo "Could not find resource: '"$1"'" 
+    fi
   else
     echo "Please provide a resource identifier as argument"
   fi
@@ -349,22 +414,96 @@ efc_res_pip() {
   fi
 }
 
-efc_help() {
-  echo "efc_show_conf          Show current configuration"
-  echo "efc_list_vomses        Show available vomses"
-  echo "efc_use_voms           Select a VOMS"
-  echo "efc_list_endpoints     Show available OCCI endpoints"
-  echo "efc_add_endpoint       Add a new OCCI endpoint"
-  echo "efc_del_endpoint       Delete an OCCI endpoint"
-  echo "efc_use_endpoint       Select an endpoint"
-  echo "efc_get_voms_timeleft  Get proxy' VOMS extension timeleft"
-  echo "efc_get_proxy_timeleft Get proxy timeleft"
-  echo "efc_check_proxy        Check proxy"
-  echo "efc_resources          Get the list of current resources"
-  echo "efc_templates          Get the list of current templates"
-  echo "efc_help               Show this help"
+efc_res_desc() {
+  if [ "$OCCI_RES" != "" -o "$1" != "" ]; then
+    if [ "$OCCI_RES" = "" ]; then
+      OCCI_RES=$1
+    fi
+    TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+    TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+    TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    TIMENOW=$(date +%s)
+    CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+    if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+      RES=$(cat $OCCI_RESOURCES | grep $OCCI_RES | awk '{ print $1 }')
+      INFO=$(cat $OCCI_RESOURCES | grep $OCCI_RES | awk '{ print $2 }')
+      cat $INFO
+    else
+      occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action describe --resource $OCCI_RES
+    fi
+  else
+    echo "You must specify an occi resource or specify it as argument"
+  fi
 }
 
+efc_ostpl_info() {
+   if [ "$OS_TPL" != "" -o "$1" != "" ]; then
+    if [ "$OS_TPL" = "" ]; then
+      OS_TPL=$1
+    fi
+    TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+    TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+    TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    TIMENOW=$(date +%s)
+    CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+    if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+      TPLRESINFO=$(cat $OCCI_TEMPLATES | grep $OS_TPL | awk '{ print $2 }')
+      cat $TPLRESINFO
+    else
+      occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action describe --resource $OS_TPL
+    fi
+  else
+    echo "You must specify an os template or specify it as argument"
+  fi
+}
+
+efc_restpl_info() {
+   if [ "$RES_TPL" != "" -o "$1" != "" ]; then
+    if [ "$RES_TPL" = "" ]; then
+      RES_TPL=$1
+    fi
+    TPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+    TPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+    TPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    TIMENOW=$(date +%s)
+    CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+    if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+      TPLRESINFO=$(cat $OCCI_RESTEMPLATES | grep $RES_TPL | awk '{ print $2 }')
+      cat $TPLRESINFO
+    else
+      occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action describe --resource $RES_TPL
+    fi
+  else
+    echo "You must specify an os template or specify it as argument"
+  fi
+}
+
+efc_help() {
+  echo "User calls:"
+  echo "  efc_show_conf          Show current configuration"
+  echo "  efc_list_vomses        Show available vomses"
+  echo "  efc_use_voms           Select a VOMS"
+  echo "  efc_list_endpoints     Show available OCCI endpoints"
+  echo "  efc_add_endpoint       Add a new OCCI endpoint"
+  echo "  efc_del_endpoint       Delete an OCCI endpoint"
+  echo "  efc_use_endpoint       Select an endpoint"
+  echo "  efc_get_voms_timeleft  Get proxy' VOMS extension timeleft"
+  echo "  efc_get_proxy_timeleft Get proxy timeleft"
+  echo "  efc_check_proxy        Check proxy"
+  echo "  efc_resources          Get the list of current endpoint resources"
+  echo "  efc_templates          Get the list of current endpoint templates"
+  echo "  efc_restemplates       Get the list of current endpoint resource templates"
+  echo "  efc_res_desc           Return the description of the given or selected resource"
+  echo "  efc_ostpl_info         Return the description of the given or selected os template"
+  echo "  efc_restpl_info        Return the description of the given or selected resource template"
+  echo "  efc_use_resource       Select a given resource as current"
+  echo "  efc_help               Show this help"
+  echo "Internal calls:"
+  echo "  efc_voms_info          Calclulate voms expiration (no output)"
+  echo "  efc_res_list           Show cached resources"
+  echo "  efc_tpl_list           Show cached templates"
+  echo "  efc_restpl_list        Show cached resource templates"
+}
 
 export OCCI_VOMS=fedcloud.egi.eu  
 export USER_CRED=/tmp/x509up_u$(id -u)

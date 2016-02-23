@@ -11,19 +11,19 @@ VPDTRY=$(which voms-proxy-destroy)
 pre_requisites() {
   if [ "$DIALOG" = "" ]; then
     echo "Unable to find dialog utility, please contact your system administrator to isntall it"
-    exit 1
+    return 1
   fi
   if [ "$LOCATE" = "" ]; then
     echo "Unable to find locate utility, please contact your system administrator to install it"
-    exit 1
+    return 1
   fi
   if [ "$VPINIT" = "" ]; then
     echo "Unable to find voms-proxy-init command, please contact your system administrator to install it"
-    exit 1
+    return 1
   fi
   if [ "$VPDTRY" = "" ]; then
     echo "Unable to find voms-proxy-destrory command, please contact your system administrator to install it"
-    exit 1
+    return 1
   fi
   # Try first to locate and source the file
   EFCENVPATH=$($LOCATE $EFCENV)
@@ -35,12 +35,20 @@ pre_requisites() {
       echo "ok"
     else
       echo "fail"
-      exit 1
+      return 1
     fi
   else
     echo "It seems EFC environment variables have not been sourced"
-    exit 1
+    return 1
   fi
+  # Determine if souced or not
+  [ $0 != $BASH_SOURCE ] && SOURCED=1 || SOURCED=0
+  # Retrieve last used values
+  [ -f $LAST_OCCI_ENDPOINT ] && OCCI_ENDPOINT=$(cat $LAST_OCCI_ENDPOINT)
+  [ -f $LAST_OCCI_VOMS     ] && OCCI_VOMS=$(cat $LAST_OCCI_VOMS)
+  [ -f $LAST_OS_TPL        ] && OS_TPL=$(cat $LAST_OS_TPL)
+  [ -f $LAST_RES_TPL       ] && RES_TPL=$(cat $LAST_RES_TPL)
+  [ -f $LAST_OCCI_RES      ] && OCCI_RES=$(cat $LAST_OCCI_RES)
 }
 
 main_window() {
@@ -112,6 +120,7 @@ endpoints() {
   RES=$?
   case $RES in
      0) OCCI_ENDPOINT=$(cat $TMP | grep $(cat $CHC) | awk '{ print $2 }')
+        echo $OCCI_ENDPOINT > $LAST_OCCI_ENDPOINT
   esac
   rm -f $TMP
   rm -f $CHC
@@ -126,13 +135,14 @@ templates() {
  if [ $RES -ne 0 ]; then
    dialog --title "Alert" --msgbox "Sorry, unable to retrieve templates\n$(cat $TPLMSG)\n" 6 60
  else
-   MENUDLG='dialog --title "Endpoints" --menu  "Please select one of the available endpoints"  20 70 16'
+   MENUDLG='dialog --title "Templates" --menu  "Please select one of the available templates"  20 70 16'
    MENUITM=$(cat $TMP | tr '\n' ' ')
    CMD="$MENUDLG $MENUITM"
    eval $CMD 2>$CHC
     RES=$?
     case $RES in
-       0) OS_TPL=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
+       0) OS_TPL=$(cat $OCCI_TEMPLATES | grep $(cat $CHC) | awk '{ print $1 }')
+          echo $OS_TPL > $LAST_OS_TPL
     esac
  fi  
  rm -f $TPLMSG
@@ -176,6 +186,7 @@ vos() {
   RES=$?
   case $RES in
      0) OCCI_VOMS=$(cat $TMP | grep $(cat $CHC) | awk '{ print $2 }')
+        echo $OCCI_VOMS > $LAST_OCCI_VOMS
   esac
   rm -f $TMP
   rm -f $CHC
@@ -200,7 +211,8 @@ resources() {
    eval $CMD 2>$CHC
     RES=$?
     case $RES in
-       0) OCCI_RES=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
+       0) OCCI_RES=$(cat $OCCI_RESOURCES | grep $(cat $CHC) | awk '{ print $1 }')
+          echo $OCCI_RES > $LAST_OCCI_RES
     esac
  fi
  rm -f $TPLMSG
@@ -212,18 +224,19 @@ restemplates() {
  TMP=$(mktemp)
  CHC=$(mktemp)
  TPLMSG=$(mktemp)
- efc_flavor_list > $TMP
+ efc_restemplates > $TMP
  RES=$?
  if [ $RES -ne 0 ]; then
    dialog --title "Alert" --msgbox "Sorry, unable to retrieve resource templates\n$(cat $TPLMSG)\n" 6 60
  else
    MENUDLG='dialog --title "Resource endpoints" --menu  "Please select one of the available resource templates"  20 70 16'
-   MENUITM=$(printf "%s \"\" " $(cat $TMP))
+   MENUITM=$(cat $TMP | tr '\n' ' ')
    CMD="$MENUDLG $MENUITM"
    eval $CMD 2>$CHC
     RES=$?
     case $RES in
-       0) RESOURCE_TPL=$(cat $TMP | grep $(cat $CHC) | awk '{ print $1 }')
+       0) RES_TPL=$(cat $OCCI_RESTEMPLATES | grep "#"$(cat $CHC) | awk '{ print $1 }' | xargs echo)
+          echo $RES_TPL > $LAST_RES_TPL
     esac
  fi
  rm -f $TPLMSG
@@ -239,4 +252,25 @@ LOOP=1
 while [ $LOOP -ne 0 ]; do
   main_window
 done
-exit 0
+#Reporting
+clear
+efc_show_conf
+if [ $SOURCED -ne 0 ]; then
+  export OCCI_ENDPOINT
+  export OCCI_VOMS  
+  export USER_CRED 
+  export USER_PUBKEY
+  export OS_TPL
+  export RES_TPL
+  export OCCI_RES
+  echo "Variables above have been exported"
+else
+  echo "Cut&Paste following text to setup variables"
+  echo "export OCCI_ENDPOINT=$OCCI_ENDPOINT"
+  echo "export OCCI_VOMS=$OCCI_VOMS"
+  echo "export USER_CRED=$USER_CRED"
+  echo "export USER_PUBKEY=$USER_PUBKEY"
+  echo "export OS_TPL=$OS_TPL"
+  echo "export RES_TPL=$RES_TPL"
+  echo "export OCCI_RES=$OCCI_RES"
+fi

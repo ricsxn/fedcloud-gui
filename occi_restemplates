@@ -1,0 +1,15 @@
+# OCCI_VOMS=fedcloud.egi.eu
+# OCCI_ENDPOINT=https://carach5.ics.muni.cz:11443/
+# OCCI_CACHE=1456237583
+http://schemas.fedcloud.egi.eu/occi/infrastructure/resource_tpl#goliath /tmp/tmp.yK13cArQWw
+http://schemas.fedcloud.egi.eu/occi/infrastructure/resource_tpl#sym_mammoth /tmp/tmp.POilfMEqnC
+http://fedcloud.egi.eu/occi/compute/flavour/1.0#mem_small /tmp/tmp.4Eyet83zuf
+http://schemas.fedcloud.egi.eu/occi/infrastructure/resource_tpl#extra_large /tmp/tmp.WGfT2M88Rt
+http://schemas.fedcloud.egi.eu/occi/infrastructure/resource_tpl#mem_extra_large /tmp/tmp.p9FHpiFym4
+http://fedcloud.egi.eu/occi/compute/flavour/1.0#medium /tmp/tmp.kLOFsi7H0n
+http://fedcloud.egi.eu/occi/compute/flavour/1.0#mem_medium /tmp/tmp.qXQtOqaRuO
+http://schemas.fedcloud.egi.eu/occi/infrastructure/resource_tpl#mammoth /tmp/tmp.0ZDn22LVTQ
+http://fedcloud.egi.eu/occi/compute/flavour/1.0#small /tmp/tmp.pNmWTpW98M
+http://fedcloud.egi.eu/occi/compute/flavour/1.0#large /tmp/tmp.akUTtzOwxJ
+http://fedcloud.egi.eu/occi/compute/flavour/1.0#mem_large /tmp/tmp.hOhStN3YzK
+http://schemas.fedcloud.egi.eu/occi/infrastructure/resource_tpl#atlas /tmp/tmp.km42m5vd3D

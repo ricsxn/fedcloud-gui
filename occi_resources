@@ -1,5 +1,4 @@
 # OCCI_VOMS=fedcloud.egi.eu
-# OCCI_ENDPOINT=http://stack-server-02.ct.infn.it:8787/
-# OCCI_CACHE=1454058176
-http://stack-server-02.ct.infn.it:8787/compute/d52178c4-5981-4a79-8a62-2b5ca718df04 /tmp/tmp.TZrum5094c
-http://stack-server-02.ct.infn.it:8787/compute/a74013e5-eb05-47f3-8bc7-a30bb1766326 /tmp/tmp.6xpGxJ6656
+# OCCI_ENDPOINT=https://carach5.ics.muni.cz:11443/
+# OCCI_CACHE=1456238326
+https://carach5.ics.muni.cz:11443/compute/67772 /tmp/tmp.O2TKVV3Qnu
