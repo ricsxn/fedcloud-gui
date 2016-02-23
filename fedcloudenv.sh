@@ -390,7 +390,7 @@ efc_res_del() {
   fi
 }
 
-efc_use_resource() {
+efc_res_select() {
   if [ "$1" != "" ]; then
     SELRES=$(cat $OCCI_RESOURCES | grep $1 | awk '{ print $1 }')
     if [ "$SELRES" != "" ]; then
@@ -493,10 +493,10 @@ efc_help() {
   echo "  efc_resources          Get the list of current endpoint resources"
   echo "  efc_templates          Get the list of current endpoint templates"
   echo "  efc_restemplates       Get the list of current endpoint resource templates"
+  echo "  efc_res_select         Select a given resource"
   echo "  efc_res_desc           Return the description of the given or selected resource"
   echo "  efc_ostpl_info         Return the description of the given or selected os template"
   echo "  efc_restpl_info        Return the description of the given or selected resource template"
-  echo "  efc_use_resource       Select a given resource as current"
   echo "  efc_help               Show this help"
   echo "Internal calls:"
   echo "  efc_voms_info          Calclulate voms expiration (no output)"
