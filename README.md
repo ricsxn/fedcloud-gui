@@ -1,5 +1,5 @@
 # fedcloud-gui 
-This is a collection of bash scripts aiming to manage the EGI FedCloud CLI commands through an easy textual GUI.
+This is a text based GUI application within a collection of bash scripts aiming to manage the EGI FedCloud CLI commands easily.
 
 ## Installation 
 Create a folder named for instance 'fedcloud'
@@ -7,10 +7,11 @@ Extract the content of this repo inside that directory
 
 To configure the GUI at the moment the user requires to edit files
 
-occi\_endpoints - The file contains space separated couples such as \<endpoint-short name\> \<endpoint URL\>
-occi\_vomses    - This file contains space separated couples such as \<VO short name\> \<VO real name\>
+`occi_endpoints` - The file contains space separated couples such as \<endpoint-short name\> \<endpoint URL\>
+`occi_vomses`    - This file contains space separated couples such as \<VO short name\> \<VO real name\>
 
-Once configured to start the GUI just cd the 'fedcloud' dir and type: ./efc-gui
+## Using the GUI
+Once configured to start the GUI just cd the 'fedcloud-gui' dir and type: `./efc-gui` or source it typing: . `./efc-gui`
 
 ## The command line
 The GUI make use of set of comman line tools wrapping several occi commands. These tools can be used by sourcing the file: `. ./fedcloudenv.sh`.
