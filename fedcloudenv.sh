@@ -84,18 +84,26 @@ efc_use_endpoint() {
 
 efc_get_voms_timeleft() {
  RES=
+ RET=0
  [ ! -f $USER_CRED ] && return 1
  RES=$(voms-proxy-info --all 2>/dev/null | grep timeleft | awk '{ print $3 }' | tail -n 1)
- [ "$RES" = "" ] && RES="00:00:00" && return 1
- return 0
+ [ "$RES" = "" ] && RES="00:00:00" && RET=1
+ if [ "$1" != "noout" ]; then
+   echo "$RES"
+ fi
+ return $RET
 }
 
 efc_get_proxy_timeleft() {
  RES=
+ RET=0
  [ ! -f $USER_CRED ] && return 1
  RES=$(voms-proxy-info --all 2>/dev/null | grep timeleft | awk '{ print $3 }' | head -n 1)
- [ "$RES" = "" ] && RES="00:00:00"return 1
- return 0
+ [ "$RES" = "" ] && RES="00:00:00" && RET=1
+ if [ "$1" != "noout" ]; then
+   echo "$RES"
+ fi
+ return $RET
 }
 
 efc_check_proxy() {
@@ -132,11 +140,11 @@ SEC2HMS() {
 }
 
 efc_voms_info() {
-  efc_get_voms_timeleft
+  efc_get_voms_timeleft noout
   VOMS_TL=$RES
   HMS2SEC $VOMS_TL
   VOMS_TL_SEC=$RES
-  efc_get_proxy_timeleft
+  efc_get_proxy_timeleft noout
   PROXY_TL=$RES
   HMS2SEC $PROXY_TL
   PROXY_TL_SEC=$RES
