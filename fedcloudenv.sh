@@ -85,7 +85,7 @@ efc_use_endpoint() {
 efc_get_voms_timeleft() {
  RES=
  [ ! -f $USER_CRED ] && return 1
- RES=$(voms-proxy-info --all 2>/dev/null | grep timeleft | awk -F'\ :\ ' '{ print $2 }' | tail -n 1)
+ RES=$(voms-proxy-info --all 2>/dev/null | grep timeleft | awk '{ print $3 }' | tail -n 1)
  [ "$RES" = "" ] && RES="00:00:00" && return 1
  return 0
 }
@@ -93,7 +93,7 @@ efc_get_voms_timeleft() {
 efc_get_proxy_timeleft() {
  RES=
  [ ! -f $USER_CRED ] && return 1
- RES=$(voms-proxy-info --all 2>/dev/null | grep timeleft | awk -F'\ :\ ' '{ print $2 }' | head -n 1)
+ RES=$(voms-proxy-info --all 2>/dev/null | grep timeleft | awk '{ print $3 }' | head -n 1)
  [ "$RES" = "" ] && RES="00:00:00"return 1
  return 0
 }
@@ -195,9 +195,15 @@ efc_show_conf() {
 
 efc_resources() {
   NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
-  TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-  TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-  TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  if [ -f $OCCI_RESOURCES ]; then
+    TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+  fi
+  if [ -f $OCCI_RESOURCES ]; then
+    TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+  fi
+  if [ -f $OCCI_RESOURCES ]; then
+    TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  fi
   TIMENOW=$(date +%s)
   CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
   if [ $NOCACHE -eq 0 -a "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
@@ -214,6 +220,7 @@ efc_resources() {
       rm -f $OCCI_RESOURCES
     fi
     RESLIST=$(mktemp)
+    echo "occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action list --resource compute > $RESLIST"
     occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action list --resource compute > $RESLIST
     RES=$?
     if [ $RES -eq 0 -a -s $RESLIST ]; then
