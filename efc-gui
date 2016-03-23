@@ -8,22 +8,39 @@ LOCATE=$(which locate)
 VPINIT=$(which voms-proxy-init)
 VPDTRY=$(which voms-proxy-destroy)
 
+
+quit() {
+  if [ "$1" = "" ]; then
+	RETCODE=0
+  else
+        RETCODE=$1
+  fi
+  if [ $SOURCED -eq 1 ]; then
+     return $RETCODE
+  else
+    exit $RETCODE
+  fi
+}
+
 pre_requisites() {
+  # Determine if souced or not
+  [ $0 != $BASH_SOURCE ] && SOURCED=1 || SOURCED=0
+
   if [ "$DIALOG" = "" ]; then
     echo "Unable to find dialog utility, please contact your system administrator to isntall it"
-    return 1
+    quit 1
   fi
   if [ "$LOCATE" = "" ]; then
     echo "Unable to find locate utility, please contact your system administrator to install it"
-    return 1
+    quit 1
   fi
   if [ "$VPINIT" = "" ]; then
     echo "Unable to find voms-proxy-init command, please contact your system administrator to install it"
-    return 1
+    quit 1
   fi
   if [ "$VPDTRY" = "" ]; then
     echo "Unable to find voms-proxy-destrory command, please contact your system administrator to install it"
-    return 1
+    quit 1
   fi
   # Try first to locate and source the file
   EFCENVPATH=$($LOCATE $EFCENV)
@@ -35,14 +52,12 @@ pre_requisites() {
       echo "ok"
     else
       echo "fail"
-      return 1
+      quit 1
     fi
   else
     echo "It seems EFC environment variables have not been sourced"
-    return 1
+    quit 1
   fi
-  # Determine if souced or not
-  [ $0 != $BASH_SOURCE ] && SOURCED=1 || SOURCED=0
   # Retrieve last used values
   [ -f $LAST_OCCI_ENDPOINT ] && OCCI_ENDPOINT=$(cat $LAST_OCCI_ENDPOINT)
   [ -f $LAST_OCCI_VOMS     ] && OCCI_VOMS=$(cat $LAST_OCCI_VOMS)
