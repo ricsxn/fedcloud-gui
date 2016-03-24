@@ -106,6 +106,17 @@ efc_get_proxy_timeleft() {
  return $RET
 }
 
+efc_get_proxy_rfc() {
+  RES=
+  RET=0
+  [ ! -f $USER_CRED ] && return 1
+  RES=$(voms-proxy-info --all 2>/dev/null | grep type | grep RFC | awk '{ print $3 }')
+  if [ "$1" != "noout" ]; then
+    echo $RES
+  fi
+  return $RET
+}
+
 efc_check_proxy() {
   if [ ! -f $USER_CRED ]; then
     echo "Could not find proxy file at: '"$USER_CRED"'"
@@ -163,6 +174,11 @@ efc_voms_info() {
     NEEDPROXY=1
   else
     NEEDPROXY=0
+  fi
+  efc_get_proxy_rfc noout
+  RFC=$RES
+  if [ "$RES" = "" ]; then
+    NEEDPROXY=1
   fi
 }
 
