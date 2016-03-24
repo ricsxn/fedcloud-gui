@@ -205,11 +205,7 @@ efc_resources() {
   NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
   if [ -f $OCCI_RESOURCES ]; then
     TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-  fi
-  if [ -f $OCCI_RESOURCES ]; then
     TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-  fi
-  if [ -f $OCCI_RESOURCES ]; then
     TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
   fi
   TIMENOW=$(date +%s)
@@ -273,9 +269,11 @@ efc_res_list() {
 
 efc_templates() {
   NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
-  TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-  TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-  TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  if [ -f OCCI_TEMPLATES ]; then
+    TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+    TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+    TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  fi
   TIMENOW=$(date +%s)
   CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
   if [ $NOCACHE -eq 0 -a "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
