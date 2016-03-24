@@ -228,7 +228,6 @@ efc_resources() {
       rm -f $OCCI_RESOURCES
     fi
     RESLIST=$(mktemp)
-    echo "occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action list --resource compute > $RESLIST"
     occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --ca-path $CAPATH --voms --action list --resource compute > $RESLIST
     RES=$?
     if [ $RES -eq 0 -a -s $RESLIST ]; then
@@ -336,9 +335,11 @@ efc_tpl_list() {
 
 efc_restemplates() {
   NOCACHE=0 && [ "$1" != "" -a "$1" = "1" ] && NOCACHE=1
-  RESTPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-  RESTPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-  RESTPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  if [ -f $OCCI_RESTEMPLATES ]; then
+    RESTPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+    RESTPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+    RESTPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+  fi
   TIMENOW=$(date +%s)
   CACHEDIFF=$((TIMENOW-RESTPL_OCCI_CACHE))
   if [ $NOCACHE -eq 0 -a "$OCCI_VOMS" = "$RESTPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$RESTPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then

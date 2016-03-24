@@ -85,7 +85,7 @@ main_window() {
          --help-button --help-label "Help"\
          --extra-button --extra-label "Configure"\
          --exit-label "Exit"\
-         --menu "$MSGCONTENT" 30 80 26 \
+         --menu "$MSGCONTENT" 0 0 0 \
          "VOs"       "Show or select available VOs" \
          "Endpoints" "Show or select one endpoint" \
          "Templates" "Show or select one endpoint template" \
