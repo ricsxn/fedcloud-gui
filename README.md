@@ -10,6 +10,8 @@ To configure the GUI at the moment the user requires to edit files
 `occi_endpoints` - The file contains space separated couples such as \<endpoint-short name\> \<endpoint URL\>
 `occi_vomses`    - This file contains space separated couples such as \<VO short name\> \<VO real name\>
 
+the `baseline_setup.sh` script creates these files with some existing values.
+
 ## GUI usage
 Once configured to start the GUI just cd the 'fedcloud-gui' directory and type: `./efc-gui` or source it typing: `. ./efc-gui`
 The first call does not setup directly the environment variable once exiting from the GUI; at the end a text message will show the necessary environment to setup in order to select values managed by the GUI. The second call loads all environment variables automatically after exiting from the GUI.
