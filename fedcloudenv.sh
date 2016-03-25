@@ -413,7 +413,8 @@ efc_restpl_list() {
 
 efc_res_del() {
   if [ "$OCCI_RES" != "" ]; then
-    printf "Would you really like to delete resource: $OCCI_RES"
+    echo "You are going to delete resource: '"$OCCI_RES"'"
+    printf "Are you sure you want to delete it? (y/n) "
     LOOP=1
     while [ $LOOP -eq 1 ]; do
       read answer
@@ -483,9 +484,11 @@ efc_ostpl_info() {
     if [ "$OS_TPL" = "" ]; then
       OS_TPL=$1
     fi
-    TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-    TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-    TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    if [ -f $OCCI_TEMPLATES ]; then
+      TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+      TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+      TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    fi
     TIMENOW=$(date +%s)
     CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
     if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
@@ -504,9 +507,11 @@ efc_restpl_info() {
     if [ "$RES_TPL" = "" ]; then
       RES_TPL=$1
     fi
-    TPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-    TPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-    TPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    if [ -f $OCCI_RESTEMPLATES ]; then
+      TPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+      TPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+      TPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    fi
     TIMENOW=$(date +%s)
     CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
     if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
@@ -542,7 +547,7 @@ efc_res_create() {
   echo "  OS_TPL  : '"$OS_TPL"'"
   echo "  RES_TPL : '"$RES_TPL"'"
   echo "  RES_LINK: '"$RES_LINK"'"
-  printf "Are you sure to generate this resource? (y/n)"
+  printf "Are you sure to generate this resource? (y/n) "
   LOOP=1
   while [ $LOOP -eq 1 ]; do
     read answer
