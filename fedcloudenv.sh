@@ -413,6 +413,16 @@ efc_restpl_list() {
 
 efc_res_del() {
   if [ "$OCCI_RES" != "" ]; then
+    printf "Would you really like to delete resource: $OCCI_RES"
+    LOOP=1
+    while [ $LOOP -eq 1 ]; do
+      read answer
+      if [ "$answer" = "y" -o "$answer" = "Y" -o "$answer" = "yes" ]; then
+        LOOP=0
+      else
+        return 1
+      fi
+    done
     echo "Deleting resource: $OCCI_RES"
     occi --endpoint $OCCI_ENDPOINT --action delete --resource $OCCI_RES --auth x509 --user-cred $USER_CRED --voms $VOMS
   else
@@ -449,9 +459,11 @@ efc_res_desc() {
     if [ "$OCCI_RES" = "" ]; then
       OCCI_RES=$1
     fi
-    TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
-    TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
-    TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    if [ -f $OCCI_RESOURCES ]; then
+      TPL_OCCI_VOMS=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+      TPL_OCCI_ENDPOINT=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+      TPL_OCCI_CACHE=$(cat $OCCI_RESOURCES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    fi
     TIMENOW=$(date +%s)
     CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
     if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
@@ -508,6 +520,59 @@ efc_restpl_info() {
   fi
 }
 
+efc_res_create() {
+  if [ "$OS_TPL" = "" ]; then
+    echo "You must select an OS Template (OS_TPL)"
+    return 1
+  elif [ "$RES_TPL" = "" ]; then
+    echo "You must select a Resource Template (RES_TPL)"
+    return 1
+  fi
+  RES_TITLE=$1
+  if [ "$RES_TITLE" = "" ]; then
+    echo "You musst specify a valid resource name"
+    return 1
+  fi
+  RES_LINK=$2
+  if [ "$RES_LINK" = "" ]; then
+    echo "You are not specifying a link name for network device generation"
+  fi
+  echo "You are going to create the following resource:"
+  echo "  NAME    : '"$RES_TITLE"'"
+  echo "  OS_TPL  : '"$OS_TPL"'"
+  echo "  RES_TPL : '"$RES_TPL"'"
+  echo "  RES_LINK: '"$RES_LINK"'"
+  printf "Are you sure to generate this resource? (y/n)"
+  LOOP=1
+  while [ $LOOP -eq 1 ]; do
+    read answer
+    if [ "$answer" = "y" -o "$answer" = "Y" -o "$answer" = "yes" ]; then
+      LOOP=0
+    else
+      return 1
+    fi
+  done
+  # Create resource
+  printf "Creating resource '"$RES_TITLE"' ... "
+  OCCI_RES=$(occi -e $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action create --resource compute --mixin os_tpl#$(echo $OS_TPL | awk -F"#" '{ print $2 }') --mixin resource_tpl#$(echo $RES_TPL | awk -F"#" '{ print $2 }') --attribute occi.core.title="${RES_TITLE}" --context user_data="file://$HOME/userdata.txt")
+  echo "done"
+  echo "Resource: $OCCI_RES"
+  printf "Waiting for resource creation ... "
+  sleep 5
+  echo "done"
+  # Create the public network
+  if [ "$RES_LINK" != "" ]; then
+    printf "Creating link: '"$RES_LINK"'"
+    OCCI_PNET=$(occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action link --resource $OCCI_RES --link $RES_LINK)
+    echo "done"
+    echo "Public IP: $OCCI_PNET"
+  fi
+  # Refresh resource list
+  printf "Refreshing resource list ... "
+  efc_resources 1 > /dev/null 2> /dev/null
+  echo "done"
+}
+
 efc_help() {
   echo "User calls:"
   echo "  efc_show_conf          Show current configuration"
@@ -527,6 +592,7 @@ efc_help() {
   echo "  efc_res_desc           Return the description of the given or selected resource"
   echo "  efc_ostpl_info         Return the description of the given or selected os template"
   echo "  efc_restpl_info        Return the description of the given or selected resource template"
+  echo "  efc_res_creates         Create a resource using selected OS_TPL and RES_TPL"
   echo "  efc_help               Show this help"
   echo "Internal calls:"
   echo "  efc_voms_info          Calclulate voms expiration (no output)"
