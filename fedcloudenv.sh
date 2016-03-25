@@ -479,10 +479,36 @@ efc_res_desc() {
   fi
 }
 
+efc_ostpl_select() {
+  if [ "$1" != "" ]; then
+    if [ -f $OCCI_TEMPLATES ]; then
+      TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+      TPL_OCCI_ENDPOINT=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+      TPL_OCCI_CACHE=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+      TIMENOW=$(date +%s)
+      CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+      if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+        OS_TPL=$(cat $OCCI_TEMPLATES | grep $1 | awk '{ print $1 }')
+      else
+        echo "Updating data-cache for templates"
+        efc_templates 1
+        OS_TPL=$(cat $OCCI_TEMPLATES | grep $1 | awk '{ print $1 }')
+      fi
+    else
+      echo "You must call efc_templates first to fill template data-cache"
+      return 1
+    fi
+  else
+    echo "You must provide a resource template id to select"
+    return 1
+  fi
+}
+
 efc_ostpl_info() {
    if [ "$OS_TPL" != "" -o "$1" != "" ]; then
-    if [ "$OS_TPL" = "" ]; then
-      OS_TPL=$1
+    if [ "$1" != "" ]; then
+      # Set OS_TPL with the given argument
+      efc_ostpl_select $1
     fi
     if [ -f $OCCI_TEMPLATES ]; then
       TPL_OCCI_VOMS=$(cat $OCCI_TEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
@@ -502,10 +528,31 @@ efc_ostpl_info() {
   fi
 }
 
+efc_restpl_select() {
+  if [ "$1" = "" ]; then
+    echo "You must provide a resource template id"
+    return 1
+  fi
+  if [ -f $OCCI_RESTEMPLATES ]; then
+    TPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
+    TPL_OCCI_ENDPOINT=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_ENDPOINT | awk -F"=" '{ print $2 }')
+    TPL_OCCI_CACHE=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_CACHE | awk -F"=" '{ print $2 }')
+    TIMENOW=$(date +%s)
+    CACHEDIFF=$((TIMENOW-TPL_OCCI_CACHE))
+    if [ "$OCCI_VOMS" = "$TPL_OCCI_VOMS" -a "$OCCI_ENDPOINT" = "$TPL_OCCI_ENDPOINT" -a $CACHEDIFF -lt $MAXCACHETIME ]; then
+      RES_TPL=$(cat $OCCI_RESTEMPLATES | grep $1 | awk '{ print $1 }')
+    else
+      echo "Updating data-cache for resource templates"
+      efc_restemplates 1
+      RES_TPL=$(cat $OCCI_RESTEMPLATES | grep $1 | awk '{ print $1 }')
+    fi
+  fi
+}
+
 efc_restpl_info() {
    if [ "$RES_TPL" != "" -o "$1" != "" ]; then
     if [ "$RES_TPL" = "" ]; then
-      RES_TPL=$1
+      efc_restpl_select $1
     fi
     if [ -f $OCCI_RESTEMPLATES ]; then
       TPL_OCCI_VOMS=$(cat $OCCI_RESTEMPLATES | grep "\#\ " | grep OCCI_VOMS | awk -F"=" '{ print $2 }')
@@ -538,12 +585,18 @@ efc_res_create() {
     echo "You musst specify a valid resource name"
     return 1
   fi
-  RES_LINK=$2
+  USERDATA=$2
+  if [ "$USERDATA" = "" ]; then
+    echo "You must provide a userdata file for contextualization"
+    return 1
+  fi
+  RES_LINK=$3
   if [ "$RES_LINK" = "" ]; then
     echo "You are not specifying a link name for network device generation"
   fi
   echo "You are going to create the following resource:"
   echo "  NAME    : '"$RES_TITLE"'"
+  echo "  USERDATA: '"$USERDATA"'"
   echo "  OS_TPL  : '"$OS_TPL"'"
   echo "  RES_TPL : '"$RES_TPL"'"
   echo "  RES_LINK: '"$RES_LINK"'"
@@ -558,8 +611,8 @@ efc_res_create() {
     fi
   done
   # Create resource
-  printf "Creating resource '"$RES_TITLE"' ... "
-  OCCI_RES=$(occi -e $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action create --resource compute --mixin os_tpl#$(echo $OS_TPL | awk -F"#" '{ print $2 }') --mixin resource_tpl#$(echo $RES_TPL | awk -F"#" '{ print $2 }') --attribute occi.core.title="${RES_TITLE}" --context user_data="file://$HOME/userdata.txt")
+  printf "Creating resource '"$RES_TITLE"' with userdata file '"$USERDATA"' ... "
+  OCCI_RES=$(occi -e $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action create --resource compute --mixin os_tpl#$(echo $OS_TPL | awk -F"#" '{ print $2 }') --mixin resource_tpl#$(echo $RES_TPL | awk -F"#" '{ print $2 }') --attribute occi.core.title="${RES_TITLE}" --context user_data="file://${USERDATA}")
   echo "done"
   echo "Resource: $OCCI_RES"
   printf "Waiting for resource creation ... "
@@ -612,6 +665,7 @@ efc_help() {
   echo "  efc_res_select         Select a given resource"
   echo "  efc_res_desc           Return the description of the given or selected resource"
   echo "  efc_ostpl_info         Return the description of the given or selected os template"
+  echo "  efc_ostpl_select       Select the given resource id"
   echo "  efc_restpl_info        Return the description of the given or selected resource template"
   echo "  efc_res_creates        Create a resource using selected OS_TPL and RES_TPL"
   echo "  efc_res_link           Associate the given network to the selected resource"
