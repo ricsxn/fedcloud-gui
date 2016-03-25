@@ -446,15 +446,6 @@ efc_res_select() {
   fi
 }
 
-efc_res_pip() {
-  if [ "$OCCI_RES" != "" ]; then
-    echo "Assigning a public IP to resource: $OCCI_RES"
-    occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action link --resource $OCCI_RES --link /network/public
-  else
-    echo "Sorry, you must select a resource first"
-  fi
-}
-
 efc_res_desc() {
   if [ "$OCCI_RES" != "" -o "$1" != "" ]; then
     if [ "$OCCI_RES" = "" ]; then
