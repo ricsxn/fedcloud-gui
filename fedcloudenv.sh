@@ -567,15 +567,31 @@ efc_res_create() {
   echo "done"
   # Create the public network
   if [ "$RES_LINK" != "" ]; then
-    printf "Creating link: '"$RES_LINK"'"
-    OCCI_PNET=$(occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action link --resource $OCCI_RES --link $RES_LINK)
-    echo "done"
-    echo "Public IP: $OCCI_PNET"
+    efc_res_link $RES_LINK
   fi
   # Refresh resource list
   printf "Refreshing resource list ... "
   efc_resources 1 > /dev/null 2> /dev/null
   echo "done"
+}
+
+efc_res_link() {
+  if [ "$OCCI_RES" = "" ]; then
+    echo "You must select a resource first"
+    return 1
+  fi
+  RES_LINK=$1
+  if [ "$RES_LINK" = "" ]; then
+    echo "You are not specifying a link name for network device generation"
+    return 1
+  fi
+  # Create the public network
+  if [ "$RES_LINK" != "" ]; then
+    printf "Creating link: '"$RES_LINK"'"
+    OCCI_PNET=$(occi --endpoint $OCCI_ENDPOINT --auth x509 --user-cred $USER_CRED --voms $VOMS --action link --resource $OCCI_RES --link $RES_LINK)
+    echo "done"
+    echo "Public IP: $OCCI_PNET"
+  fi
 }
 
 efc_help() {
@@ -597,7 +613,8 @@ efc_help() {
   echo "  efc_res_desc           Return the description of the given or selected resource"
   echo "  efc_ostpl_info         Return the description of the given or selected os template"
   echo "  efc_restpl_info        Return the description of the given or selected resource template"
-  echo "  efc_res_creates         Create a resource using selected OS_TPL and RES_TPL"
+  echo "  efc_res_creates        Create a resource using selected OS_TPL and RES_TPL"
+  echo "  efc_res_link           Associate the given network to the selected resource"
   echo "  efc_help               Show this help"
   echo "Internal calls:"
   echo "  efc_voms_info          Calclulate voms expiration (no output)"
