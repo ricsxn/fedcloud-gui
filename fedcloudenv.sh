@@ -426,8 +426,12 @@ efc_res_del() {
     done
     echo "Deleting resource: $OCCI_RES"
     occi --endpoint $OCCI_ENDPOINT --action delete --resource $OCCI_RES --auth x509 --user-cred $USER_CRED --voms $VOMS
+    # Refresh resource list
+    printf "Refreshing resource list ... "
+    efc_resources 1 > /dev/null 2> /dev/null
+    echo "done"
   else
-    echo "Sorry, you must select a resrouce first"
+    echo "Sorry, you must select a resouce first"
   fi
 }
 
